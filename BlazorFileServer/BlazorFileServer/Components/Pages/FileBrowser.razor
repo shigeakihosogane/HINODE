@@ -1,0 +1,42 @@
+﻿
+
+<PageTitle>FileBrowser</PageTitle>
+
+<div style="height: 100vh; width: 100%; overflow: hidden; display: flex; flex-direction: column;">
+    <RadzenSplitter Style="flex-grow: 1; height: 100%;">
+        <RadzenSplitterPane Size="50%" Min="150px" Max="70%">
+            Pane A1
+            <div style="font-size: 10px;">
+                50% Min 150px Max 70%
+            </div>
+        </RadzenSplitterPane>
+        <RadzenSplitterPane>
+            @foreach (var fileName in fileNames)
+            {
+                <p>@fileName</p>
+            }
+        </RadzenSplitterPane>
+    </RadzenSplitter>
+</div>
+
+
+@code {
+
+
+    private List<string> fileNames { get; set; } = new();
+
+    private readonly string sharedFolderPath = @"C:\Users\Hinode24\Documents\Test\Fax受信\FAX一時保管";
+
+    protected override void OnInitialized()
+    {
+        var files = Directory.GetFiles(sharedFolderPath, "*", System.IO.SearchOption.AllDirectories);
+
+        // ファイル名のみを返す（必要に応じて他のメタデータも追加）
+        fileNames = files.ToList<string>();
+    }
+
+
+
+
+
+}

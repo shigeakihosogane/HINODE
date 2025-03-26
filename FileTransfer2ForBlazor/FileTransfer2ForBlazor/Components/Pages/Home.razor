@@ -1,0 +1,59 @@
+﻿<h3>Home</h3>
+@* <p>Welcome to the Home page!</p> *@
+
+<RadzenPanel class="rz-my-0 rz-mx-auto" Style="width: auto; height: calc(100vh - 120px);">
+    
+    <div style="margin-top:30px; margin-left:50px;">
+        <RadzenRow RowGap="0">
+            <RadzenColumn SizeSM="9">
+                <h2>ファイル転送を開始してください</h2>
+            </RadzenColumn>
+            <RadzenColumn SizeSM="3">
+                <RadzenSelectBar Size="ButtonSize.Large" Value="@isRun" TValue="bool" Change="OnValueChanged">
+                    <Items>
+                        <RadzenSelectBarItem Text="IDLE" Value="false" />
+                        <RadzenSelectBarItem Text="RUN" Value="true" />
+                    </Items>
+                </RadzenSelectBar>
+            </RadzenColumn>
+        </RadzenRow>
+
+        <div style=" margin-left:20px;">
+            <h4>Scan・取込転送</h4>
+            <div style =" margin-left:20px;">
+                <p>複合機でスキャンされた.pdfファイルや、外部から取り込まれた.pdfファイルを</p>
+                <p>整理保管するためのフォーマットへ変換します。</p>
+            </div>
+            <h4>FAX一時保管転送</h4>
+            <div style=" margin-left:20px;">
+                <p>受注入力が完了した.pdf文書を受注コードを一時的に保管します。</p>
+                <p>受注コードより受注情報を取得し定型のファイル名を生成します。</p>
+                <p>一時保管先フォルダに[荷主名][担当]毎に仕分してフォルダに保存します。</p>
+                <p>各ファイルには一時保管期限を設けます。</p>
+            </div>
+            <h4>FAX最終保管転送</h4>
+            <div style=" margin-left:20px;">
+                <p>保管期限を超過したファイルを最終保存先へ転送します。</p>
+                <p>受注の請求処理が完了しているファイルにはファイル名に[受注金額]を付与します。</p>
+                <p>FAXの最終保管の仕分については[荷主名][担当]に加え、FAX有効日の[年月]を追加し保存します。</p>
+            </div>
+        </div>
+    </div>
+</RadzenPanel>
+
+
+
+@code {
+    [Parameter] public bool isRun { get; set; }
+    [Parameter] public EventCallback<bool> OnIsRunChanged { get; set; }
+
+
+    private async Task OnValueChanged(bool newValue)
+    {
+        isRun = newValue;
+        if (OnIsRunChanged.HasDelegate)
+        {
+            await OnIsRunChanged.InvokeAsync(isRun);
+        }
+    }
+}

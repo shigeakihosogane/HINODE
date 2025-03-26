@@ -107,6 +107,7 @@ Partial Class Form1
         '
         'CheckBox2
         '
+        Me.CheckBox2.Anchor = CType((System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Right), System.Windows.Forms.AnchorStyles)
         Me.CheckBox2.AutoSize = True
         Me.CheckBox2.Location = New System.Drawing.Point(866, 74)
         Me.CheckBox2.Name = "CheckBox2"

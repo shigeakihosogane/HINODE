@@ -1,0 +1,123 @@
+﻿
+
+
+<div style="height:100vh; width: 100%;">
+    <SfAppBar ColorMode="AppBarColor.Dark" style="height: 50px;">
+        <SfButton CssClass="e-inherit" IconCss="e-icons e-menu"></SfButton>
+        <AppBarSpacer></AppBarSpacer>
+        <SfButton CssClass="e-inherit" Content="FREE TRIAL"></SfButton>
+    </SfAppBar>
+
+    <SfSplitter Height="calc(100vh - 80px)" Width="100%">
+        <SplitterPanes>
+            <SplitterPane Size="300px" Min="200px">
+                <ContentTemplate >
+                    <div style="height: calc(100vh - 85px); display: flex; flex-direction: column; overflow:hidden">
+
+                        <FileSearchComponent OnSearchCondition="HandleSearchCondition" />
+
+                        <div style="flex: 1; overflow: auto;">
+                            <FolderTreeComponent OnSelectedFolder="HandleSelectedFolder" />
+                        </div>
+                    </div>
+
+                </ContentTemplate>
+            </SplitterPane>
+            <SplitterPane>
+                <ContentTemplate>
+
+                    <FileListComponent DisplayContents="@_displayContents" OnSelectedContent="HandleContentSelection" />
+
+                </ContentTemplate>
+            </SplitterPane>
+            <SplitterPane>
+                <ContentTemplate>
+
+                    <FileDetailsComponent SelectedContent="@_selectedContent"/>
+
+                </ContentTemplate>
+            </SplitterPane>
+        </SplitterPanes>
+    </SfSplitter>
+</div>
+
+@code {
+
+    private string _selectedFolderPath { get; set; } = "";//ツリーから返ってくるフォルダパス
+    private SearchCondition? _searchCondition = new();//検索画面から返ってくる検索条件
+
+    private List<DisplayContent> _displayContents = new();//真ん中画面のソース
+
+
+    private DisplayContent? _selectedContent = new();//右画面のソース
+
+
+
+
+    private async Task HandleSelectedFolder(string folderPath)//ツリーコンポーネントからフォルダを取得
+    {
+        _selectedFolderPath = folderPath;
+        await LoadSelectedFolderContents(_selectedFolderPath);
+        await InvokeAsync(StateHasChanged);
+    }    
+    private async Task LoadSelectedFolderContents(string folderPath)//フォルダからコンテンツを取得
+    {
+        var displayContents = new List<DisplayContent>();
+        if (Directory.Exists(folderPath))
+        {
+            await Task.Run(() => 
+            {
+                foreach (var directory in Directory.GetDirectories(folderPath))
+                {
+                    displayContents.Add(new DisplayContent
+                        {                            
+                            Name = Path.GetFileName(directory),
+                            IsFolder = true,
+                            FullPath = directory,
+                            NetworkPath = folderPath
+                        });
+                }            
+                foreach (var file in Directory.GetFiles(folderPath))
+                {
+                    var fileName = Path.GetFileName(file);
+                    displayContents.Add(new DisplayContent
+                        {
+                            Name = fileName,
+                            IsFolder = false,
+                            FullPath = Path.GetFullPath(file),
+                            NetworkPath = folderPath + @"\" + fileName
+                        });
+                }
+            });
+        }
+        _displayContents = displayContents;
+    }
+
+    private async void HandleSearchCondition(SearchCondition searchCondition)//検索条件からコンテンツ取得
+    {
+        _displayContents = await FileRegistryService.GetDisplayContentAsync(searchCondition);
+
+    }
+
+
+
+
+
+
+
+    private void HandleContentSelection(DisplayContent selectedContent)//中央のコンテンツ選択
+    {
+        _selectedContent = selectedContent;        
+    }
+    
+
+    
+
+}
+
+
+
+
+
+
+

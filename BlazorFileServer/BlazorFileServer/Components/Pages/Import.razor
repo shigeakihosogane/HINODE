@@ -1,0 +1,22 @@
+﻿
+<PageTitle>Import</PageTitle>
+
+
+<h3>Import</h3>
+
+<RadzenSelectBar Size="ButtonSize.Large" Value="@_isRunning" TValue="bool" >
+    <Items>
+        <RadzenSelectBarItem Text="IDLE" Value="false" />
+        <RadzenSelectBarItem Text="RUN" Value="true" />
+    </Items>
+</RadzenSelectBar>
+
+
+
+
+
+@code {
+    private bool _isRunning { get; set; } = false;
+   
+
+}

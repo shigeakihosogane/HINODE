@@ -1,0 +1,231 @@
+﻿@using Index = FileSearchSystem.Models.Index
+@* @inject Form2 Form2 *@
+@* @inject DbConnectionService DbConnectionService *@
+@* @inject FormInteractionService InteractionService *@
+@inject FileTransferHistoryService FileTransferHistoryService
+@inject FileRegistryService FileRegistryService
+
+@using System.Diagnostics
+
+<RadzenSplitter Orientation="Orientation.Vertical" Style="height:100vh; overflow: hidden;">
+    <div style=" height:100px;">
+        <!-- 上部ヘッダー -->
+        <RadzenSplitterPane Size="50px" MinSize="50px" MaxSize="150px">
+            <header style="height: 100%; background-color: #333; color: white; padding: 10px;">
+                <h3>ヘッダー</h3>
+            </header>
+        </RadzenSplitterPane>
+    </div>
+
+    <div>
+        <!-- 中央エリア（サイドビュー、メインビュー、詳細ビュー） -->
+        <RadzenSplitterPane Size="100%" MinSize="200px" Style="height: calc(100vh - 100px);">
+            <RadzenSplitter Orientation="Orientation.Horizontal">
+
+                <!-- 左側サイドビュー -->
+                <RadzenSplitterPane Size="200px">
+                    <div style="background-color: #f4f4f4; padding: 10px;">
+                        <h4>サイドビュー</h4>
+                        <!-- サイドメニューなどをここに表示 -->
+                    </div>
+                </RadzenSplitterPane>
+
+                <RadzenSplitterPane Size="100%" MinSize="200px" height="100%">
+                    <RadzenSplitter Orientation="Orientation.Horizontal">
+                        <!-- メインファイル表示エリア -->
+                        <RadzenSplitterPane Size="600px" Style="overflow-y:auto; flex-flow:row;">
+                            <div style="background-color: #e0e0e0; padding: 10px;">
+                                <h4>メインファイル表示エリア</h4>
+
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 20px; overflow-x: auto; padding: 0px;">
+                                @if (_customFileRegistrys != null && _customFileRegistrys.Any())
+                                {
+                                    @foreach (var customFileRegistry in _customFileRegistrys)
+                                    {
+                                        <RadzenCard @onclick="() => OnCardClick(customFileRegistry.NetworkPath)" @ondblclick="() => OnCardDoubleClick(customFileRegistry.NetworkPath)"
+                                                    Style=" height:172px; width:138px; overflow:hidden; margin:6px; padding:6px">
+
+                                            <div style="margin:0px; height: 110px;width:auto;">
+                                                <RadzenImage Path="@customFileRegistry.ThumbnailBase64" class="rz-gravatar" AlternateText="Thumbnail"
+                                                             style="border-radius: 0; height: 100%; width: 100%;" />
+                                            </div>
+                                            <div style="margin:0px; height: 30px;width:auto; overflow: hidden; text-align:center;">
+                                                <p style="font-size:11px;">@Path.GetFileName(customFileRegistry.FileFullPath)</p>
+                                            </div>
+                                            <div style="margin:6px; height: auto;width:auto;　overflow: hidden; text-align:center;">
+                                                <p　style ="font-size:11px;">ページ</p　style>
+                                            </div>
+                                        </RadzenCard>
+                                    }
+
+                                }
+                                else
+                                {
+                                    <p>No data available</p>
+                                }
+                            </div>
+                        </RadzenSplitterPane>
+
+                        <RadzenSplitterPane Size="300px" MinSize="200px" MaxSize="500px">
+                            <div style="background-color: #f0f0f0; padding: 10px;">
+                                @if (!string.IsNullOrEmpty(_selectedFilePath))
+                                {
+                                    <p>@_selectedFilePath</p>
+                                }
+                                else
+                                {
+                                    <h4>詳細ビュー</h4>
+                                }
+
+                                <!-- 詳細情報などをここに表示 -->
+                            </div>
+                            @if (!string.IsNullOrEmpty(_selectedFilePath))
+                            {
+                                var extension = Path.GetExtension(_selectedFilePath).ToLower();
+
+                                <!-- PDFファイルの場合 -->
+                                @if (extension == ".pdf")
+                                {
+                                    <RadzenImage Path="@($"data:image/jpeg;base64,{base64EncodedImageData}")" AlternateText="base64 image" />
+                                }
+                                <!-- その他のファイルの場合 -->
+                                else
+                                {
+                                    <p>サポートされていないファイル形式です: @_selectedFilePath</p>
+                                }
+                            }
+                            else
+                            {
+                                <p>画像は選択されていません。</p>
+                            }
+                        </RadzenSplitterPane>
+
+                    </RadzenSplitter>
+                </RadzenSplitterPane>
+
+            </RadzenSplitter>
+        </RadzenSplitterPane>
+    </div>
+
+    <div style=" height:60px;">
+        <!-- 下部フッター -->
+        <RadzenSplitterPane Size="50px" MinSize="50px" MaxSize="150px">
+            <footer style="height: 100%; background-color: #333; color: white; padding: 10px;">
+                <h4>フッター</h4>
+            </footer>
+        </RadzenSplitterPane>
+    </div>
+
+</RadzenSplitter>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenNumeric ShowUpDown="false" TValue="decimal?" @bind-Value=@_searchCondition.ZyutyuuID Placeholder="受注ID" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenTextBox @bind-Value="@_searchCondition.ConsignorName" Placeholder="荷主名" Change=@(args => OnChange(args, "TextBox with placeholder")) Style="width: 100%" aria-label="TextBox with placeholder" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenTextBox @bind-Value="@_searchCondition.Department" Placeholder="担当部署" Change=@(args => OnChange(args, "TextBox with placeholder")) Style="width: 100%" aria-label="TextBox with placeholder" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenTextBox @bind-Value="@_searchCondition.Remarks" Placeholder="備考" Change=@(args => OnChange(args, "TextBox with placeholder")) Style="width: 100%" aria-label="TextBox with placeholder" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenTextBox @bind-Value="@_searchCondition.StartDate" Placeholder="開始日" Change=@(args => OnChange(args, "TextBox with placeholder")) Style="width: 100%" aria-label="TextBox with placeholder" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenTextBox @bind-Value="@_searchCondition.EndDate" Placeholder="終了日" Change=@(args => OnChange(args, "TextBox with placeholder")) Style="width: 100%" aria-label="TextBox with placeholder" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenNumeric ShowUpDown="false" TValue="decimal?" @bind-Value=@_searchCondition.OrderAmountUpper Placeholder="受注金額上限" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenNumeric ShowUpDown="false" TValue="decimal?" @bind-Value=@_searchCondition.OrderAmountLower Placeholder="受注金額下限" InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" />
+</RadzenStack>
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.Wrap">
+    <RadzenButton Click=@(args => ClearSearchConditions()) Text="上" ButtonStyle="ButtonStyle.Base" Title="" Size="ButtonSize.ExtraSmall" />
+    <RadzenButton Click=@(args => ClearSearchConditions()) Text="×" ButtonStyle="ButtonStyle.Base" Title="" Size="ButtonSize.ExtraSmall" />
+    <RadzenButton Click=@(args => OpenForm2()) Text="検索" ButtonStyle="ButtonStyle.Base" Title="" Size="ButtonSize.ExtraSmall" />
+</RadzenStack>
+
+@foreach (var fileRegistry in fileRegistrys)
+{
+    <p>@Path.GetFileName(fileRegistry.FileFullPath)</p>
+
+}
+
+
+@code {
+
+    private SearchCondition _searchCondition = new();
+
+
+
+    private bool _isOpen;
+    private int Width { get; set; } = 800;
+    private int Height { get; set; } = 600;
+
+
+    private string teststr;
+    private List<FileRegistry> fileRegistrys = new();
+
+
+
+
+    private async Task OpenForm2()
+    {
+        
+        fileRegistrys = await FileRegistryService.GetFileRegistryByConditionAsync(_searchCondition);
+
+        var form1 = (Form1)Application.OpenForms["Form1"];
+        form1.OpenForm2(fileRegistrys);
+
+
+        
+        StateHasChanged();
+    } 
+
+
+
+    private void ClearSearchConditions()
+    {
+        _searchCondition = new();
+    }
+
+
+
+
+
+
+
+    private void OnChange(string value, string name)
+    { 
+    }
+
+    
+
+
+
+}
+<style>
+    /* RadzenDatePicker ダイアログのサイズを調整 */
+    .rz-datepicker-popup {
+        width: 100px !important; /* 必要に応じて幅を設定 */
+        height: 100px !important; /* 必要に応じて高さを設定 */
+    }
+</style>

@@ -1,0 +1,235 @@
+﻿@inject FolderPickerService FolderPickerService
+@inject DialogService DialogService
+@inject NotificationService NotificationService
+
+<RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Start" Wrap="FlexWrap.NoWrap" Style="height:45px;">  
+    <h3>Settings</h3>    
+    <RadzenButton Click=@(args => OnSettingSaved()) Text="保存" ButtonStyle="ButtonStyle.Secondary" Disabled="@isRun" Style="margin-left:800px;" Title="@_SaveButtonText" />
+</RadzenStack>
+
+@if (_tempSetting == null)
+{
+    <RadzenPanel class="rz-my-0 rz-mx-auto" Style="width: auto; height: auto;">
+        <p>設定を読み込んでいます。</p>
+    </RadzenPanel>    
+}
+else
+{
+    <div style="width: auto; height: calc(100vh - 130px); overflow:scroll;">
+        <RadzenPanel AllowCollapse="true" Collapsed="false" class="rz-my-5 rz-mx-auto" Style="width: auto;">
+
+            <HeaderTemplate>
+                <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                    <span class="material-symbols-outlined">display_settings</span><b>システム設定</b>
+                </RadzenText>            
+            </HeaderTemplate>
+
+            <ChildContent>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>常時監視転送</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="監視インターバル(ﾐﾘ秒)" Component="MonitoringInterval" Style="width:200px;" />
+                            <RadzenNumeric Step="1000" @bind-Value=@_tempSetting.MonitoringInterval InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" Name="MonitoringInterval" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>日次転送</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="日次処理実行時間" Component="ScheduledExecutionTime" Style="width:200px;" />
+                            <RadzenDatePicker @bind-Value=@_tempSetting.ScheduledExecutionTime ShowTime="true" TimeOnly="true" DateFormat="H:mm" Name="ScheduledExecutionTime" />
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="転送待ち猶予期間(日)" Component="TransferQueueTime" Style="width:200px;" />
+                            <RadzenNumeric @bind-Value=@_tempSetting.TransferQueueTime InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" Name="TransferQueueTime" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>ログ</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="取得件数" Component="LogRetrievalCount" Style="width:200px;" />
+                            <RadzenNumeric Step="100" @bind-Value=@_tempSetting.LogRetrievalCount InputAttributes="@(new Dictionary<string,object>(){ { "aria-label", "enter value" }})" Name="LogRetrievalCount" />
+                        </RadzenStack>
+                    </div>
+                </div>
+            </ChildContent>
+        </RadzenPanel>
+
+        <RadzenPanel AllowCollapse="true" Collapsed="false" class="rz-my-5 rz-mx-auto" Style="width: auto;">
+
+            <HeaderTemplate>
+                <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                    <span class="material-symbols-outlined">account_tree</span><b>フォルダ設定</b>
+                </RadzenText>            
+            </HeaderTemplate>
+
+            <ChildContent>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>Scan・取込</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="監視フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.Trans1Monitoring" />
+                            <RadzenButton Click=@(args => GetFolderPath("Trans1Monitoring",@_tempSetting.Trans1Monitoring)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="転送先フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.Trans1Successful" />
+                            <RadzenButton Click=@(args => GetFolderPath("Trans1Successful",@_tempSetting.Trans1Successful)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>FAX一時保管転送</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="監視フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.Trans2Monitoring" />
+                            <RadzenButton Click=@(args => GetFolderPath("Trans2Monitoring",@_tempSetting.Trans2Monitoring)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="一時保管フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.Trans2Successful" />
+                            <RadzenButton Click=@(args => GetFolderPath("Trans2Successful",@_tempSetting.Trans2Successful)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="エラー時転送フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.Trans2Error" />
+                            <RadzenButton Click=@(args => GetFolderPath("Trans2Error",@_tempSetting.Trans2Error)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>FAX最終保管転送</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="最終保管フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.ArchiveFolder" />
+                            <RadzenButton Click=@(args => GetFolderPath("ArchiveFolder",@_tempSetting.ArchiveFolder)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>Therefore転送</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="転送フォルダ" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.TfUploader" />
+                            <RadzenButton Click=@(args => GetFolderPath("TfUploader",@_tempSetting.TfUploader)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                    </div>
+                </div>
+                <div style="margin-top:20px; margin-left:50px;">
+                    <h4>日次処理</h4>
+                    <div style="margin-left:20px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="ファイルリスト保存先" Style="width:200px;" />
+                            <RadzenLabel Text="@_tempSetting.FileListFolder" />
+                            <RadzenButton Click=@(args => GetFolderPath("FileListFolder",@_tempSetting.FileListFolder)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+                        </RadzenStack>
+                    </div>
+                </div>
+            </ChildContent>
+        </RadzenPanel>
+    </div>
+}
+
+@code{
+    [Parameter] public bool isRun { get; set; }
+    [Parameter] public EventCallback<bool> OnIsRunChanged { get; set; }
+
+    [Parameter] public Setting? setting { get; set; } = null;
+    [Parameter] public EventCallback<Setting> OnSettingChanged { get; set; }
+
+    private Setting _tempSetting = new Setting();
+    private string _SaveButtonText = "";
+
+    protected override void OnParametersSet()
+    {
+        if(setting!=null)
+        {
+            _tempSetting = setting;
+        }
+    }
+
+    private async void GetFolderPath(string btntext, string selectedPath)
+    {
+        if (_tempSetting != null)
+        {
+            var selectedfolder = await FolderPickerService.GetFolderPathAsync(selectedPath);
+            if (selectedfolder != "")
+            {
+                switch (btntext)
+                {
+                    case "Trans1Monitoring":
+                        _tempSetting.Trans1Monitoring = selectedfolder;
+                        break;
+                    case "Trans1Successful":
+                        _tempSetting.Trans1Successful = selectedfolder;
+                        break;
+                    case "Trans2Monitoring":
+                        _tempSetting.Trans2Monitoring = selectedfolder;
+                        break;
+                    case "Trans2Successful":
+                        _tempSetting.Trans2Successful = selectedfolder;
+                        break;
+                    case "Trans2Error":
+                        _tempSetting.Trans2Error = selectedfolder;
+                        break;
+                    case "ArchiveFolder":
+                        _tempSetting.ArchiveFolder = selectedfolder;
+                        break;
+                    case "TfUploader":
+                        _tempSetting.TfUploader = selectedfolder;
+                        break;
+                    case "FileListFolder":
+                        _tempSetting.FileListFolder = selectedfolder;
+                        break;
+
+                };
+            }
+        }
+        StateHasChanged();
+    }
+    private async Task OnValueChanged(bool newValue)
+    {
+        isRun = newValue;
+        if (OnIsRunChanged.HasDelegate)
+        {
+            await OnIsRunChanged.InvokeAsync(isRun);
+        }        
+    }
+
+    private async Task OnSettingSaved()
+    {
+        var dt = DateTime.Now;
+        _tempSetting.ScheduledExecutionTime = new DateTime(dt.Year, dt.Month, dt.Day,
+                                                    _tempSetting.ScheduledExecutionTime.Hour, _tempSetting.ScheduledExecutionTime.Minute, _tempSetting.ScheduledExecutionTime.Second);
+        if (OnSettingChanged.HasDelegate)
+        {
+            await OnSettingChanged.InvokeAsync(_tempSetting);
+        }
+        ShowNotification("セッティングを保存しました。");
+    }    
+    private void ShowNotification(string text)
+    {
+        NotificationService.Notify(new NotificationMessage
+            {
+                Severity = NotificationSeverity.Info,
+                Summary = "Setting",
+                Detail = text,
+                Duration = 4000
+            });
+        StateHasChanged();
+    }
+
+
+    void Change(string text)
+    {
+        Console.WriteLine($"{text}");       
+    }
+}

@@ -1,0 +1,197 @@
+﻿
+
+<SfTreeView TValue="FolderNode"  SelectedNodesChanged="@OnSelectedNodesChanged" >
+    <TreeViewFieldsSettings TValue="FolderNode" DataSource="@FolderTree" Id="Id" Text="Name" Child="@("SubFolders")" IconCss="Icon"></TreeViewFieldsSettings>
+</SfTreeView>
+
+@foreach (var item in _selectedNodes)
+{
+    <p>@item</p>
+}
+<p>@_selectedPath</p>
+
+
+@code {
+    [Parameter] public EventCallback<string> OnSelectedFolder { get; set; }
+
+    private List<RootDirectory> RootDirectory = new();    
+    private List<FolderNode> FolderTree = new();
+
+
+    private string[] _selectedNodes = Array.Empty<string>();
+    private string _selectedPath = "";
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        RootDirectory = await RootDirectoryService.GetRootDirectoryAsync();
+        var folderNodes = new List<FolderNode>();
+        
+        foreach (var rootDirectory in RootDirectory)
+        {
+            await Task.Run(() =>
+            {
+                if (Directory.Exists(rootDirectory.DirectoryPath))
+                {
+                    var folderNode = new FolderNode();
+                    folderNode.Id = Guid.NewGuid().ToString();
+                    folderNode.Name = rootDirectory.DisplayName;
+                    folderNode.Icon = "folder";
+                    folderNode.FullPath = rootDirectory.DirectoryPath;
+                    folderNode.HasSubfolders = Directory.GetDirectories(rootDirectory.DirectoryPath).Any();
+                    folderNode.SubFolders = LoadFolderTree(rootDirectory.DirectoryPath);// サブフォルダをロード
+                    folderNode.Expanded = false;
+                    folderNodes.Add(folderNode);
+                }
+            });
+        }
+        
+        FolderTree = folderNodes;
+    }
+
+    private List<FolderNode> LoadFolderTree(string rootPath)
+    {
+        var folderNodes = new List<FolderNode>();
+        foreach (var directory in Directory.GetDirectories(rootPath))
+        {
+            var folderNode = new FolderNode
+                {
+                    Id = Guid.NewGuid().ToString(),
+                    Name = Path.GetFileName(directory),
+                    Icon = "folder",
+                    FullPath = directory,
+                    HasSubfolders = Directory.GetDirectories(directory).Any(),
+                    SubFolders = LoadFolderTree(directory),
+                    Expanded = false
+                };
+            folderNodes.Add(folderNode);
+        }
+        return folderNodes;
+    }
+
+
+    private async Task OnSelectedNodesChanged(string[] selectedNodes)
+    {
+        _selectedNodes = selectedNodes;
+
+        if (_selectedNodes.Length > 0)
+        {
+            var selectedNodeId = _selectedNodes[0]; // 最初の選択を取得
+            var fullPath = FindFullPathRecursive(FolderTree, selectedNodeId);
+            _selectedPath = fullPath;
+
+            if (!string.IsNullOrEmpty(fullPath))
+            {
+                await OnSelectedFolder.InvokeAsync(fullPath);
+            }
+        }
+    }
+
+
+    private string FindFullPathRecursive(List<FolderNode> nodes, string id)
+    {
+        foreach (var node in nodes)
+        {
+            if (node.Id == id)
+            {
+                return node.FullPath;
+            }
+
+            if (node.SubFolders != null && node.SubFolders.Any())
+            {
+                var result = FindFullPathRecursive(node.SubFolders, id);
+                if (!string.IsNullOrEmpty(result))
+                {
+                    return result;
+                }
+            }
+        }
+        return string.Empty; // IDが見つからない場合
+    }
+    
+
+
+}
+
+<style>
+    /* split */
+    .control-container .e-btn.e-inherit {
+        margin: 0 3px;
+    }
+    /* split */
+    .centered-content {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+    }
+
+    /* Sample specific stylesツリービュー */
+    .control_wrapper {
+        max-width: 500px;
+        margin: auto;
+        border: 1px solid #dddddd;
+        border-radius: 3px;
+        max-height: 470px;
+        overflow: auto;
+    }
+    /* Loading sprite image for TreeViewツリービュー */
+    .e-treeview .e-list-icon {
+        background-repeat: no-repeat;
+        background-image: url('//ej2.syncfusion.com/demos/src/listview/images/file_icons.png');
+        height: 20px;
+    }
+
+    .e-treeview .e-list-img {
+        width: 25px;
+        height: 25px;
+    }
+
+    .e-treeview .e-list-item {
+        line-height: 30px;
+    }
+
+    .e-treeview .e-fullrow {
+        height: 35px;
+    }
+    /* Specify the Icon positions based upon the class nameツリービュー */
+    .e-treeview .e-list-icon.folder {
+        background-position: -197px -552px
+    }
+
+    .e-bigger .e-treeview .e-list-icon.folder {
+        background-position: -197px -549px;
+    }
+
+    .e-treeview .e-list-icon.docx {
+        background-position: -197px -20px
+    }
+
+    .e-treeview .e-list-icon.ppt {
+        background-position: -197px -48px
+    }
+
+    .e-treeview .e-list-icon.pdf {
+        background-position: -197px -104px
+    }
+
+    .e-treeview .e-list-icon.images {
+        background-position: -197px -132px
+    }
+
+    .e-treeview .e-list-icon.zip {
+        background-position: -197px -188px
+    }
+
+    .e-treeview .e-list-icon.audio {
+        background-position: -197px -244px
+    }
+
+    .e-treeview .e-list-icon.video {
+        background-position: -197px -272px
+    }
+
+    .e-treeview .e-list-icon.exe {
+        background-position: -197px -412px
+    }
+</style>

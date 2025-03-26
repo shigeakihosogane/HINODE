@@ -1,0 +1,333 @@
+﻿@inject DBConnection DBConnection
+@inject FileTransferService FileTransferService
+@inject SettingService SettingService
+@inject FileTransferHistoryService FileTransferHistoryService
+@inject FileTransferLogService FileTransferLogService
+@inject SharedService SharedService
+@inject ArchiveService ArchiveService
+@inject NotificationService NotificationService
+@inject MotherboardIDService MotherboardIDService
+@inject ThereforeLogService ThereforeLogService
+@inject ImportLegacyFilesService ImportLegacyFilesService
+@inject FileRegistryService FileRegistryService
+
+<RadzenLayout >
+    <!-- Header -->
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+            <RadzenSidebarToggle Click="@(() => sidebar1Expanded = !sidebar1Expanded)" />
+            <RadzenLabel Text="Header" />
+        </RadzenStack>
+    </RadzenHeader>
+
+    <!-- Sidebar -->
+    <RadzenSidebar @bind-Expanded="@sidebar1Expanded">
+        <RadzenPanelMenu>
+            <RadzenPanelMenuItem Text="Home" Icon="home" Click="@(() => SelectMenuItem("Home"))" />
+            <RadzenPanelMenuItem Text="Status" Icon="dashboard" Click="@(() => SelectMenuItem("Status"))" />
+            <RadzenPanelMenuItem Text="Log" Icon="list" Click="@(() => SelectMenuItem("Log"))" />
+            <RadzenPanelMenuItem Text="Settings" Icon="settings" Click="@(() => SelectMenuItem("Settings"))" />
+            <RadzenPanelMenuItem Text="FileImport" Icon="input" Click="@(() => SelectMenuItem("FileImport"))" />
+
+        </RadzenPanelMenu>
+        @* <div class="rz-p-4">
+            Sidebar
+        </div> *@
+        <div style="margin-top:80px; text-align: center;">
+            <RadzenSelectBar Size="ButtonSize.Large" Value="@_isRun" TValue="bool" Change="OnSelectBarChange">
+                <Items>
+                    <RadzenSelectBarItem Text="IDLE" Value="false" />
+                    <RadzenSelectBarItem Text="RUN" Value="true" />
+                </Items>
+            </RadzenSelectBar>
+        </div>      
+
+    </RadzenSidebar>
+
+    <!-- Body -->
+    <RadzenBody class="rz-p-4" style="height:auto">
+        <div style="overflow-x:hidden; overflow-y:hidden;">
+            @BodyContent
+        </div>
+    </RadzenBody>
+</RadzenLayout>
+<RadzenComponents />
+
+@* <RadzenButton Click=@(args => OnClick()) Text="TEST" ButtonStyle="ButtonStyle.Secondary" />
+<p>@testString</p> *@
+
+
+
+@code {
+
+    private bool _isRun;
+    private Setting _setting { get; set; } = new();
+    private string _serialNumber = "";
+    private static bool _isAzureConnected;
+    private static bool _isCubeConnected;
+    private List<FileTransferHistory> _fileTransferHistorys = new List<FileTransferHistory>();
+    private List<FileTransferLog> _fileTransferLogs = new List<FileTransferLog>();
+    private List<FileRegistry> _fileRegistrys = new List<FileRegistry>();
+
+    private bool sidebar1Expanded = true; // Sidebarの展開状態を管理
+    private string selectedMenuItem = "Home"; // 選択されたメニュー項目を管理
+    private RenderFragment BodyContent => GetBodyContent(); // RenderFragment型のプロパティを利用
+
+
+
+    private Timer? _mainTimer;
+    private DateTime? _mainTimerStartDateTime;
+    private int _mainTimerElapsedTime;
+    private string _mainTimerStatus = "停止中";
+
+    private Timer? _archiveTimer;
+    private DateTime _nextExecutionTime;
+    private DateTime? _lastExecutionTime;
+    private TimeSpan _scheduledTime;
+    private int _archiveProcessedCount = 0;
+    private int _temporaryStorageTotalCount = 0;
+
+
+
+    private string testString = "";
+
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        _serialNumber = MotherboardIDService.GetMotherboardSerialNumber();
+
+        _isAzureConnected = await DBConnection.CheckDatabaseConnection();
+        _isCubeConnected = await ThereforeLogService.CheckDatabaseConnection();
+        if(_isAzureConnected)
+        {
+            await this.GetSetting(_serialNumber);
+
+            _isRun = false;//初期常態IDLE  
+            _scheduledTime = new TimeSpan(_setting.ScheduledExecutionTime.Hour, _setting.ScheduledExecutionTime.Minute, _setting.ScheduledExecutionTime.Second); // 実行時刻
+
+            await this.GetFileTransferHistory();
+            await this.GetFileTranceferLog();
+            await this.GetFileRegistry();
+        }
+
+        SharedService.OnInsertFileTranceferLog += GetFileTranceferLog;
+        SharedService.OnInsertFileTransferHistory += GetFileTransferHistory;
+        SharedService.OnInsertFileRegistry += GetFileRegistry;
+        ScheduleDailyExecution();
+
+    }
+    private async Task GetSetting(string serialNumber)
+    {
+        _setting = await SettingService.GetSetting(serialNumber);            
+    }
+
+    private async Task GetFileTransferHistory()
+    {
+        _fileTransferHistorys = await FileTransferHistoryService.GetFileTransferHistoryAsync(_setting.LogRetrievalCount);
+    }
+    private async Task GetFileTranceferLog()
+    {
+        _fileTransferLogs = await FileTransferLogService.GetFileTranceferLogAsync(_setting.LogRetrievalCount);
+    }
+    private async Task GetFileRegistry()
+    {
+        _fileRegistrys = await FileRegistryService.GetFileRegistryAsync(_setting.LogRetrievalCount);
+    }
+
+    public void Dispose()
+    {
+        SharedService.OnInsertFileTranceferLog -= GetFileTransferHistory;
+        SharedService.OnInsertFileTransferHistory -= GetFileTranceferLog;
+        SharedService.OnInsertFileRegistry -= GetFileRegistry;
+
+        _mainTimer?.Dispose();
+        _archiveTimer?.Dispose();
+
+    }
+    private void ShowNotification(string text)
+    {
+        NotificationService.Notify(new NotificationMessage
+                {
+                    Severity = NotificationSeverity.Info,
+                    Summary = "通知",
+                    Detail = text,
+                    Duration = 4000
+                });
+        InvokeAsync(StateHasChanged);        
+    }
+    private void SelectMenuItem(string menuItem)//
+    {
+        selectedMenuItem = menuItem;
+    }
+    private RenderFragment GetBodyContent()
+    {
+        return selectedMenuItem switch
+        {
+            "Home" => @<Home isRun="@_isRun" OnIsRunChanged="UpdateIsRun" />,
+            "Status" => @<Status isRun="@_isRun" mainTimerStartDateTime="@_mainTimerStartDateTime" mainTimerElapsedTime="@_mainTimerElapsedTime" mainTimerStatus="@_mainTimerStatus"
+        nextExecutionTime="@_nextExecutionTime" lastExecutionTime="@_lastExecutionTime" archiveProcessedCount="@_archiveProcessedCount" temporaryStorageTotalCount="@_temporaryStorageTotalCount"
+                        OnRunArchiveNow="ExecuteDailyTask" isAzureConnected="@_isAzureConnected" isCubeConnected="@_isCubeConnected"/>,
+            "Log" => @<Log fileTransferHistorys="@_fileTransferHistorys" fileTransferLogs="@_fileTransferLogs" fileRegistry="@_fileRegistrys" />,
+            "Settings" => @<Settings setting="@_setting" isRun="@_isRun" OnIsRunChanged="UpdateIsRun" OnSettingChanged="SaveSetting" />,
+            "FileImport" => @<FileImport />,
+            _ => @<p>Unknown Page</p>
+        };
+    }    
+    private void UpdateIsRun(bool newIsRun)
+    {
+        _isRun = newIsRun;
+        this.OnSelectBarChange(_isRun);
+        StateHasChanged();
+    }
+
+
+
+    private void OnSelectBarChange(bool newValue)
+    {
+        _isRun = newValue;
+        if (_isRun)
+        {            
+            var emsg = "";//ディレクトリ存在チェック            
+            if (!Directory.Exists(_setting.Trans1Monitoring)) emsg += "監視1ディレクトリなし ";
+            if (!Directory.Exists(_setting.Trans1Successful)) emsg += "成功1ディレクトリなし ";
+            if (!Directory.Exists(_setting.Trans2Monitoring)) emsg += "監視2ディレクトリなし ";
+            if (!Directory.Exists(_setting.Trans2Successful)) emsg += "成功2ディレクトリなし ";
+            if (!Directory.Exists(_setting.Trans2Error)) emsg += "失敗2ディレクトリなし ";
+
+            if (string.IsNullOrEmpty(emsg)) // すべてのディレクトリが存在する場合のみ開始
+            {
+                _mainTimerStatus = "稼働中";
+                StartMonitoring(); // フォルダ監視を開始
+            }
+            else
+            {
+                _mainTimerStatus = emsg; // エラーメッセージを設定
+            }
+        }
+        else // false の場合は停止
+        {
+            StopMonitoring(); // フォルダ監視を停止
+            _mainTimerStatus = "停止中";
+        }
+
+        StateHasChanged(); // 状態を更新してUIを再レンダリング
+    }
+
+    private void StartMonitoring()
+    {
+        _mainTimer = new Timer(CheckFolder, null, 0, _setting.MonitoringInterval);
+        _mainTimerStartDateTime = DateTime.Now;   
+        ShowNotification("フォルダ監視を開始しました。");
+    }
+    private void StopMonitoring()
+    {
+        _mainTimer?.Dispose();
+        _mainTimer = null;
+        _mainTimerStartDateTime = null;
+        _mainTimerElapsedTime = 0;
+        ShowNotification("フォルダ監視を停止しました。");
+    }
+
+    private async void CheckFolder(object? state)
+    {
+        if (_mainTimerStartDateTime.HasValue)
+        { 
+            _mainTimerElapsedTime = (int)(DateTime.Now - _mainTimerStartDateTime.Value).TotalSeconds;
+        }
+        // testString = _mainTimerElapsedTime.ToString();
+        await InvokeAsync(StateHasChanged);
+
+        //scan転送1処理
+        var files1 = Directory.GetFiles(_setting.Trans1Monitoring);    
+        var files2 = Directory.GetFiles(_setting.Trans2Monitoring);
+
+        await Task.Delay(300);
+
+        foreach (var file in files1)
+        {
+            if(File.Exists(file))
+            {
+                var ext = Path.GetExtension(file);
+                if(ext!=".tmp" && ext!=".db")
+                {
+                    await FileTransferService.AtherFileFormat(file, _isCubeConnected);
+                }
+            }
+        }
+
+        //FAX一時転送処理
+        foreach (var file in files2)
+        {
+            if (File.Exists(file))
+            {
+                var ext = Path.GetExtension(file);
+                if (ext != ".tmp" && ext != ".db")
+                {
+                    await FileTransferService.GenerateFileNameWithIndex(file, _isCubeConnected);
+                }
+            }
+        }
+    }
+
+
+
+
+    private void ScheduleDailyExecution()
+    {
+        // 次回実行時刻を計算
+        DateTime now = DateTime.Now;
+        _nextExecutionTime = new DateTime(now.Year, now.Month, now.Day,
+            _scheduledTime.Hours, _scheduledTime.Minutes, _scheduledTime.Seconds);
+
+        if (_nextExecutionTime <= now)
+        {
+            _nextExecutionTime = _nextExecutionTime.AddDays(1);
+        }
+
+        TimeSpan timeUntilNextExecution = _nextExecutionTime - now;
+
+        // タイマーをセット
+        _archiveTimer = new Timer(ExecuteDailyTask, null, timeUntilNextExecution, Timeout.InfiniteTimeSpan);
+    }
+
+    private async void ExecuteDailyTask(object? state)
+    {        
+        // 実行処理
+        _isAzureConnected = await DBConnection.CheckDatabaseConnection();
+        _isCubeConnected = await ThereforeLogService.CheckDatabaseConnection();
+        _archiveProcessedCount = await ArchiveService.ArchiveProcessedFile();
+        _temporaryStorageTotalCount = await ArchiveService.GetTemporaryStorageTotalCountAsync(_setting.Trans2Successful);
+        _lastExecutionTime = DateTime.Now;
+        ShowNotification($"[{DateTime.Now}] 日次処理を実行しました。処理: {_archiveProcessedCount}件、残: {_temporaryStorageTotalCount}件");        
+        await InvokeAsync(StateHasChanged);
+
+        // 次回実行時刻をスケジュール
+        ScheduleDailyExecution();
+    }
+
+
+
+
+    private async Task SaveSetting(Setting newSetting)
+    {        
+        await SettingService.SaveSettingAsync(_serialNumber,newSetting);        
+        await this.GetSetting(_serialNumber);
+        this.ScheduleDailyExecution();
+    }
+
+
+
+
+
+    private async void OnClick()
+    {       
+    }
+
+
+
+
+
+
+}
+

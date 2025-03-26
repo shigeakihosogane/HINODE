@@ -1,0 +1,146 @@
+﻿
+<h3>Status</h3>
+
+<div style="width: auto; height: calc(100vh - 120px); overflow:auto;">
+
+    <RadzenPanel class="rz-my-5 rz-mx-auto" Style="width: auto; height: auto;">
+
+        <HeaderTemplate>
+            <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                <span class="material-symbols-outlined">folder_eye</span><b>監視処理</b>
+            </RadzenText>            
+        </HeaderTemplate>
+
+        <ChildContent>
+            <div style="margin-top:10px; margin-left:50px;">
+                <h5>一時保管転送・Scan転送・取込転送</h5>
+                <div style="margin-top:10px; margin-left:20px;">                    
+                    <RadzenButton Text="@mainTimerStatus" class="rz-border-radius-10" Size="ButtonSize.Large" ButtonStyle="@currentStyle" />
+                    <div style="margin-top : 20px;">
+                        <RadzenColumn SizeSM="6">
+                            <p>開始日時 : @mainTimerStartDateTime</p>
+                        </RadzenColumn>
+                        <RadzenColumn SizeSM="6">
+                            <p>稼働時間：@FormattedElapsedTime(mainTimerElapsedTime)</p>
+                        </RadzenColumn>
+                    </div>
+                </div>                
+            </div>
+        </ChildContent>
+    </RadzenPanel>
+
+    <RadzenPanel class="rz-my-5 rz-mx-auto" Style="width: auto; height: auto;">
+
+        <HeaderTemplate>
+            <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                <span class="material-symbols-outlined">save_clock</span><b>日次処理</b>
+            </RadzenText>            
+        </HeaderTemplate>
+
+        <ChildContent>
+            <div style="margin-top:10px; margin-left:50px;">
+                <h5>最終転送</h5>
+                <div style="margin-top:10px; margin-left:20px;">                    
+                    <RadzenButton Text="稼働中" class="rz-border-radius-10" Size="ButtonSize.Large" ButtonStyle="ButtonStyle.Danger" />                        
+                    <div style="margin-top : 10px;">
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="前回実行日時" Style="width:150px;" />
+                            <RadzenLabel Text="@lastExecutionTime.ToString()" Style="width:230px;" />
+                            <RadzenLabel Text="次回実行日時" Style="width:150px;" />
+                            <RadzenLabel Text="@nextExecutionTime.ToString()" Style="width:150px;" />
+                            
+                        </RadzenStack>
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="処理件数" Style="width:150px;" />
+                            <RadzenLabel Text="@archiveProcessedCount.ToString()" Style="width:230px;" />
+                            <RadzenLabel Text="" Style="width:150px;" />
+                            <RadzenButton Click=@(args => InvokeRunArchiveNow()) Text="今すぐ実行" ButtonStyle="ButtonStyle.Base" Size="ButtonSize.Small" />
+                        </RadzenStack>
+                        
+                        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                            <RadzenLabel Text="一時フォルダ残数" Style="width:150px;" />
+                            <RadzenLabel Text="@temporaryStorageTotalCount.ToString()" Style="width:230px;" />                            
+                            <RadzenLabel Text="" Style="width:230px;" />
+
+                        </RadzenStack>
+
+                    </div>
+                </div>
+            </div>            
+        </ChildContent>
+    </RadzenPanel>
+    <RadzenPanel class="rz-my-5 rz-mx-auto" Style="width: auto; height: auto;">
+
+        <HeaderTemplate>
+            <RadzenText TextStyle="TextStyle.H6" class="rz-display-flex rz-align-items-center rz-m-0">
+                <span class="material-symbols-outlined">host</span><b>DataBase</b>
+            </RadzenText>
+        </HeaderTemplate>
+
+        <ChildContent>
+            <div style="margin-top:10px; margin-left:50px;">
+                <h5>接続常態</h5>
+                <div style="margin-top:10px; margin-left:20px;">                    
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                        <RadzenLabel Text="AzureDB" Style="width:150px;" />
+                        <RadzenLabel Text="@isAzureConnected.ToString()" Style="width:230px;" /> 
+                    </RadzenStack>
+                    <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+                        <RadzenLabel Text="CubeDB" Style="width:150px;" />
+                        <RadzenLabel Text="@isCubeConnected.ToString()" Style="width:230px;" />
+                    </RadzenStack>
+                    
+                </div>
+            </div>
+        </ChildContent>
+    </RadzenPanel>
+</div>
+
+
+@code {
+    [Parameter] public bool isRun { get; set; }
+    [Parameter] public bool isAzureConnected { get; set; }
+    [Parameter] public bool isCubeConnected { get; set; }
+    [Parameter] public DateTime? mainTimerStartDateTime { get; set; }
+    [Parameter] public int mainTimerElapsedTime { get; set; }
+    [Parameter] public string mainTimerStatus { get; set; } = "";
+
+    [Parameter] public DateTime? nextExecutionTime { get; set; }
+    [Parameter] public DateTime? lastExecutionTime { get; set; }
+    [Parameter] public int archiveProcessedCount { get; set; }
+    [Parameter] public int temporaryStorageTotalCount { get; set; }
+
+    
+    [Parameter] public EventCallback OnRunArchiveNow { get; set; }
+
+    private ButtonStyle currentStyle = ButtonStyle.Danger;
+
+    protected override void OnParametersSet()
+    {
+        if(isRun)
+        {
+            currentStyle = ButtonStyle.Danger;
+        }
+        else
+        {
+            currentStyle = ButtonStyle.Secondary;
+        }
+    }
+
+    private string FormattedElapsedTime(int seconds)
+    {
+        var timeSpan = TimeSpan.FromSeconds(seconds);
+        return $"{timeSpan.Days}日 {timeSpan.Hours}時間 {timeSpan.Minutes}分 {timeSpan.Seconds}秒";
+    }
+
+    private async Task InvokeRunArchiveNow()
+    {
+        if (OnRunArchiveNow.HasDelegate)
+        {
+            await OnRunArchiveNow.InvokeAsync(null);
+        }
+    }
+
+
+
+}

@@ -1,0 +1,308 @@
+﻿@inject FolderPickerService FolderPickerService
+
+<h3>FileImport</h3>
+
+
+<RadzenPanel class="rz-my-0 rz-mx-auto" Style="width: auto; height: auto;">
+    <ChildContent>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+            <RadzenLabel Text="@_process" Style="width:150px;" />
+            <RadzenLabel Text="@_startDate.ToString()" Style="width:150px;" />
+            <RadzenLabel Text="@_elapsedTime" Style="width:250px;" />
+            <RadzenLabel Text="@_endDate.ToString()" Style="width:150px;" />
+
+        </RadzenStack>
+    </ChildContent>
+</RadzenPanel>
+
+<RadzenPanel class="rz-my-0 rz-mx-auto" Style="width: auto; height: auto;">
+    <ChildContent>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+            <RadzenLabel Text="TargetDirectory" Style="width:150px;" />
+            <RadzenLabel Text="@_targetDirectoryPath" />
+            <RadzenButton Click=@(args => GetFolderPathAsync("TargetDirectory",@_targetDirectoryPath)) Text="..." ButtonStyle="ButtonStyle.Base" Title="フォルダを参照" Size="ButtonSize.ExtraSmall" />
+            <RadzenButton Click=@(args => SearchTargetDirectoryAsync(@_targetDirectoryPath)) Text="SearchTargetDirectory" ButtonStyle="ButtonStyle.Base" Title="フォルダ数ファイル数を取得" Size="ButtonSize.ExtraSmall" />
+
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+            <RadzenLabel Text="" Style="width:150px;" />
+            <RadzenLabel Text="Folder" Style="width:150px;" />
+            <RadzenLabel Text="@_folderCount.ToString()" Style="width:250px;" />
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">
+            <RadzenLabel Text="" Style="width:150px;" />
+            <RadzenLabel Text="File" Style="width:150px;" />
+            <RadzenLabel Text="@_fileCount.ToString()" Style="width:250px;" />
+        </RadzenStack>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Wrap="FlexWrap.NoWrap" style="margin-top:10px;">            
+            <RadzenLabel Text="FolderListPath" Style="width:150px;" />
+            <RadzenLabel Text="@_folderListPath" Style="width:auto;" />
+        </RadzenStack>
+
+    </ChildContent>
+</RadzenPanel>    
+
+@code {
+    private string _process = "";
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private Timer? _timer;
+    private string _elapsedTime ="";
+
+    private string _targetDirectoryPath ="";
+    private int _folderCount = 0;
+    private int _fileCount = 0;
+    private string _folderListPath = "";
+
+
+    private async void GetFolderPathAsync(string btntext, string selectedPath)
+    {
+        var selectedfolder = await FolderPickerService.GetFolderPathAsync(selectedPath);
+        if (selectedfolder != "")
+        {
+            switch (btntext)
+            {
+                case "TargetDirectory":
+                    _targetDirectoryPath = selectedfolder;
+                    break;                    
+
+            };
+
+        }
+        StateHasChanged();
+    }
+
+    private async Task SearchTargetDirectoryAsync(string targetDirectory)
+    {
+        _folderCount = 0;
+        _fileCount = 0;
+        _folderListPath = "";
+        if (_targetDirectoryPath != "")
+        {
+            _process = "SearchTargetDirectory";
+            _startDate = DateTime.Now;
+            _endDate = null;
+            _timer = new Timer(GetElapsedTime, null, 0, 1000);
+
+            await this.GetFolderListAsync();
+
+            _endDate = DateTime.Now;
+            _timer?.Dispose();
+            _timer = null;            
+        }
+        else
+        {
+            _folderListPath = "TargetDirectoryを指定してください。";
+            _process = "";
+            _startDate = null;
+            _endDate = null;
+            _timer?.Dispose();
+            _timer = null;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async void GetElapsedTime(object? state)
+    {
+        if(_startDate!=null)
+        {
+            var seconds = (int)(DateTime.Now - _startDate.Value).TotalSeconds;
+            var timeSpan = TimeSpan.FromSeconds(seconds);
+            _elapsedTime = $"{timeSpan.Days}Days {timeSpan.Hours}Hours {timeSpan.Minutes}Minutes {timeSpan.Seconds}Seconds";
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+
+
+
+    public async Task GetFolderListAsync()
+    {
+        var tempFilePath = Path.GetTempFileName();        
+        try
+        {
+            Console.WriteLine("Starting directory write...");
+            using (StreamWriter writer = new(tempFilePath))
+            {
+                await foreach (var dir in GetDirectoriesStreamAsync(_targetDirectoryPath))
+                {
+                    Console.WriteLine($"Writing directory: {dir}");
+                    await writer.WriteLineAsync(dir);
+                }
+            }
+            Console.WriteLine($"Finished writing directories to {tempFilePath}");
+
+            var filePrefix = "ImportFolderList_";
+            var ts = DateTime.Now.ToString("yyyyMMdd-HHmmss");
+            var fileName = $"{filePrefix}{ts}.csv";
+            var fullPath = Path.Combine(@"C:\Users\Hinode24\Documents\Test", fileName);
+
+            Console.WriteLine($"Generating CSV file: {fullPath}");
+            using StreamReader reader = new(tempFilePath);
+            string folderPath;
+
+            using (var writer = new StreamWriter(fullPath, false, Encoding.GetEncoding("Shift_JIS")))
+            {
+                writer.WriteLine("ファイル数,フォルダパス");
+                while ((folderPath = await reader.ReadLineAsync()) != null)
+                {
+                    Console.WriteLine($"Processing folder: {folderPath}");
+                    var fileCount = await GetFileCountAsync(folderPath);
+                    writer.WriteLine($"{fileCount},{folderPath}");
+                    
+                    // await this.InportFiles(folderPath);
+                    Console.WriteLine($"Folder: {folderPath}, File Count: {fileCount}");
+                    _fileCount += fileCount;
+                    _folderCount++;
+                }
+            }
+            _folderListPath = fullPath;
+            Console.WriteLine("CSV generation completed.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error during import: {ex.Message}");
+            throw; // 再スローしてエラーを呼び出し元に伝える
+        }
+        finally
+        {
+            if (File.Exists(tempFilePath))
+            {
+                File.Delete(tempFilePath);
+                Console.WriteLine("Temporary file deleted.");
+            }
+        }
+    }
+
+    private static async IAsyncEnumerable<string> GetDirectoriesStreamAsync(string path)
+    {
+        Queue<string> directories = new();
+        directories.Enqueue(path);
+
+        while (directories.Count > 0)
+        {
+            string currentDir = directories.Dequeue();
+            yield return currentDir;
+
+            string[] subDirs;
+            try
+            {
+                subDirs = await Task.Run(() => Directory.GetDirectories(currentDir));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error accessing {currentDir}: {ex.Message}");
+                continue;
+            }
+
+            foreach (var subDir in subDirs)
+            {
+                directories.Enqueue(subDir);
+            }
+        }
+    }
+    private static async Task<int> GetFileCountAsync(string folderPath)
+    {
+        try
+        {
+            return await Task.Run(() => Directory.GetFiles(folderPath).Length);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error counting files in {folderPath}: {ex.Message}");
+            return 0;
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+    // private async Task InportFiles(string folederPath)
+    // {
+    //     string[] files = Array.Empty<string>();
+    //     await Task.Run(async () =>
+    //     {
+    //         files = Directory.GetFiles(folederPath);
+    //         if (files != null)
+    //         {
+    //             foreach (var file in files)//ここからファイル一件毎の処理
+    //             {
+    //                 try
+    //                 {
+    //                     var history = new FileTransferHistory
+    //                         {
+    //                             DefaultFullPath = Path.GetFullPath(file)
+    //                         };
+    //                     var directoryTo = _exportTargetDirectory;
+    //                     var fileName = Path.GetFileNameWithoutExtension(file);
+    //                     var extensionName = Path.GetExtension(file);
+
+    //                     var fileNameArray = fileName.Split('_');
+    //                     //0荷主名_1FAX番号_2タイムスタンプ_3受注ID_4開始日_5終了日_6担当区分_7備考_8金額_9ページ
+    //                     directoryTo += @"\" + fileNameArray[0];
+    //                     directoryTo += @"\" + fileNameArray[6];
+    //                     if (fileNameArray[6] == "4.倉庫保管")
+    //                     {
+    //                         directoryTo += @"\" + fileNameArray[7]; ;
+    //                     }
+    //                     if (fileNameArray[4].Length == 8)
+    //                     {
+    //                         directoryTo += string.Concat(@"\", fileNameArray[4].AsSpan(0, 6));
+    //                     }
+    //                     if (!Directory.Exists(directoryTo))
+    //                     {
+    //                         Directory.CreateDirectory(directoryTo);
+    //                     }
+    //                     var newFileName = "";
+    //                     for (var n = 0; n < 8; n++)
+    //                     {
+    //                         newFileName += fileNameArray[n] + "_";
+    //                     }
+    //                     newFileName += "_";//金額の分
+
+    //                     var newPath = directoryTo + @"\" + newFileName + extensionName;
+    //                     int i = 1;
+    //                     while (File.Exists(newPath))
+    //                     {
+    //                         newPath = directoryTo + @"\" + newFileName + "(" + i.ToString() + ")" + extensionName;
+    //                         i++;
+    //                     }
+    //                     var fileInfo = new FileInfo(Path.GetFullPath(file));
+    //                     fileInfo.CopyTo(newPath);
+
+    //                     history.ArchiveFullPath = newPath;
+    //                     history.ArchiveTime = DateTime.Now;
+    //                     history.ConsignorID = 0;
+    //                     history.ConsignorName = fileNameArray[0];
+    //                     history.FaxNumber = fileNameArray[1];
+    //                     history.TimeStamp = fileNameArray[2];
+    //                     history.StartDate = DateTime.ParseExact(fileNameArray[4], "yyyyMMdd", null);
+    //                     history.StartDate = DateTime.ParseExact(fileNameArray[5], "yyyyMMdd", null);
+    //                     history.Department = fileNameArray[6];
+    //                     history.Remarks = fileNameArray[7];
+    //                     await _fileTransferHistoryService.InsertFileTransferHistoryAsync(history);
+    //                 }
+    //                 catch (Exception ex)
+    //                 {
+    //                     Console.WriteLine(file + ":" + ex.ToString());
+    //                 }
+    //             }
+    //         }
+    //     });
+    // }
+
+
+
+
+
+
+
+
+}
+

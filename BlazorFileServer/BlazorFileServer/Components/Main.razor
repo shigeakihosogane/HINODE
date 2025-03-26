@@ -1,0 +1,109 @@
+﻿@page "/"
+@* @rendermode InteractiveServer *@
+@rendermode InteractiveServer
+
+<RadzenLayout Style="height: 100vh; width: 100%; display: flex; flex-direction: column;">
+    <RadzenHeader>
+        <RadzenStack Orientation="Orientation.Horizontal" AlignItems="AlignItems.Center" Gap="0">
+            <RadzenSidebarToggle Click="@(() => sidebar1Expanded = !sidebar1Expanded)" />
+            <RadzenLabel Text="Header" />
+        </RadzenStack>
+    </RadzenHeader>
+
+    <div style="height: calc(100vh - 110px);">
+        <RadzenSplitter Style="flex-grow: 1; height: 100%;">
+            <RadzenSplitterPane Size="360px" Min="120px" Max="720px" Style="height: 100%; overflow: auto;">
+
+
+
+                <RadzenTree Data=@entries Expand=@LoadFiles Style="width: 100%; height: 99%; overflow:auto;" >
+                    <RadzenTreeLevel Text=@GetTextForNode Template=@FileOrFolderTemplate />
+                </RadzenTree>
+
+
+
+            </RadzenSplitterPane>
+            <RadzenSplitterPane Size="360px" Min="120px" Style="overflow: auto;">
+                @foreach (var fileName in fileNames)
+                {
+                    <p>@fileName</p>
+                }
+            </RadzenSplitterPane>
+            <RadzenSplitterPane  Min="120px" Style="overflow: hidden;">
+                @foreach (var fileName in fileNames)
+                {
+                    <p>@fileName</p>
+                }
+            </RadzenSplitterPane>
+        </RadzenSplitter>
+    </div>    
+
+    <RadzenFooter>
+        Footer
+    </RadzenFooter>
+</RadzenLayout>
+
+@code {
+    private bool sidebar1Expanded = true;
+
+
+
+    private string teststr;
+
+
+
+
+
+
+
+
+    private List<string> fileNames { get; set; } = new();
+    private List<string> entries = new();
+    private readonly string sharedFolderPath = @"C:\Users\Hinode24\Documents\Test\Fax受信\FAX一時保管";
+
+    protected override void OnInitialized()
+    {
+        var files = Directory.GetFiles(sharedFolderPath, "*", System.IO.SearchOption.AllDirectories);
+
+        // ファイル名のみを返す（必要に応じて他のメタデータも追加）
+        fileNames = files.ToList<string>();
+
+        entries.Add(sharedFolderPath);
+
+
+    }
+
+
+
+
+
+
+
+    void LoadFiles(TreeExpandEventArgs args)
+    {
+        var directory = args.Value as string;
+
+        args.Children.Data = Directory.EnumerateFileSystemEntries(directory);
+        args.Children.Text = GetTextForNode;
+        args.Children.HasChildren = (path) => Directory.Exists((string)path);
+        args.Children.Template = FileOrFolderTemplate;
+        args.Children.Checkable = o => false;
+    }
+
+    string GetTextForNode(object data)
+    {
+        return Path.GetFileName((string)data);
+    }
+
+    RenderFragment<RadzenTreeItem> FileOrFolderTemplate = (context) => builder =>
+    {
+        string path = context.Value as string;
+        bool isDirectory = Directory.Exists(path);
+
+        builder.OpenComponent<RadzenIcon>(0);
+        builder.AddAttribute(1, nameof(RadzenIcon.Icon), isDirectory ? "folder" : "insert_drive_file");
+        builder.CloseComponent();
+        builder.AddContent(3, context.Text);
+    };
+
+}

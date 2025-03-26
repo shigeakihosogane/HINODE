@@ -1,0 +1,262 @@
+﻿@using System.Diagnostics
+
+<RadzenSplitter Orientation="Orientation.Vertical" Style="height:100vh; overflow: hidden;">
+    <div style=" height:100px;">
+        <!-- 上部ヘッダー -->
+        <RadzenSplitterPane Size="50px" MinSize="50px" MaxSize="150px">
+            <header style="height: 100%; background-color: #333; color: white; padding: 10px;">
+                <h3>ヘッダー</h3>
+            </header>
+        </RadzenSplitterPane>
+    </div>
+
+    <div>
+        <!-- 中央エリア（サイドビュー、メインビュー、詳細ビュー） -->
+        <RadzenSplitterPane Size="100%" MinSize="200px" Style="height: calc(100vh - 100px);">
+            <RadzenSplitter Orientation="Orientation.Horizontal" >
+
+                <!-- 左側サイドビュー -->
+                <RadzenSplitterPane Size="200px" >
+                    <div style="background-color: #f4f4f4; padding: 10px;">
+                        <h4>サイドビュー</h4>
+                        <!-- サイドメニューなどをここに表示 -->
+                    </div>
+                </RadzenSplitterPane>
+
+                <RadzenSplitterPane  Size="100%" MinSize="200px" height="100%" >
+                    <RadzenSplitter Orientation="Orientation.Horizontal">
+                        <!-- メインファイル表示エリア -->
+                        <RadzenSplitterPane Size="600px" Style="overflow-y:auto; flex-flow:row;">
+                            <div style="background-color: #e0e0e0; padding: 10px;">
+                                <h4>メインファイル表示エリア</h4>
+
+                            </div>
+                            <div style="display: flex; flex-wrap: wrap; gap: 20px; overflow-x: auto; padding: 0px;">
+                                @if (_customFileRegistrys != null && _customFileRegistrys.Any())
+                                {
+                                    @foreach (var customFileRegistry in _customFileRegistrys)
+                                    {
+                                        <RadzenCard @onclick="() => OnCardClick(customFileRegistry.NetworkPath)" @ondblclick="() => OnCardDoubleClick(customFileRegistry.NetworkPath)"
+                                        Style=" height:172px; width:138px; overflow:hidden; margin:6px; padding:6px" >
+
+                                            <div style="margin:0px; height: 110px;width:auto;">
+                                                <RadzenImage Path="@customFileRegistry.ThumbnailBase64" class="rz-gravatar" AlternateText="Thumbnail"
+                                                style="border-radius: 0; height: 100%; width: 100%;" />
+                                            </div>
+                                            <div style ="margin:0px; height: 30px;width:auto; overflow: hidden; text-align:center;">
+                                                <p style="font-size:11px;">@Path.GetFileName(customFileRegistry.FileFullPath)</p>
+                                            </div>
+                                            <div style="margin:6px; height: auto;width:auto;　overflow: hidden; text-align:center;">
+                                                <p　style ="font-size:11px;">ページ</p　style>
+                                            </div>
+                                        </RadzenCard>
+                                    }
+
+                                }
+                                else
+                                {
+                                    <p>No data available</p>
+                                }
+                            </div>
+                        </RadzenSplitterPane>
+
+                        <RadzenSplitterPane Size="300px" MinSize="200px" MaxSize="500px">
+                            <div style="background-color: #f0f0f0; padding: 10px;">
+                                @if (!string.IsNullOrEmpty(_selectedFilePath))
+                                {
+                                    <p>@_selectedFilePath</p>
+                                }
+                                else
+                                {
+                                    <h4>詳細ビュー</h4>
+                                }
+
+                                <!-- 詳細情報などをここに表示 -->
+                            </div>
+                            @if (!string.IsNullOrEmpty(_selectedFilePath))
+                            {
+                                var extension = Path.GetExtension(_selectedFilePath).ToLower();
+
+                                <!-- PDFファイルの場合 -->
+                                @if (extension == ".pdf")
+                                {
+                                    <RadzenImage Path="@($"data:image/jpeg;base64,{base64EncodedImageData}")" AlternateText="base64 image" />
+                                }
+                                <!-- その他のファイルの場合 -->
+                                else
+                                {
+                                    <p>サポートされていないファイル形式です: @_selectedFilePath</p>
+                                }
+                            }
+                            else
+                            {
+                                <p>画像は選択されていません。</p>
+                            }
+                        </RadzenSplitterPane>
+
+                    </RadzenSplitter>
+                </RadzenSplitterPane>
+
+            </RadzenSplitter>
+        </RadzenSplitterPane>
+    </div>
+
+    <div style =" height:60px;">
+        <!-- 下部フッター -->
+        <RadzenSplitterPane Size="50px" MinSize="50px" MaxSize="150px">
+            <footer style="height: 100%; background-color: #333; color: white; padding: 10px;">
+                <h4>フッター</h4>
+            </footer>
+        </RadzenSplitterPane>
+    </div>
+
+</RadzenSplitter>
+
+
+
+@code{
+    [Parameter] public List<FileRegistry> FileRegistrys { get; set; }
+
+    private List<CustomFileRegistry> _customFileRegistrys = new();
+    private string _selectedFilePath { get; set; } = "";
+
+    private string base64EncodedImageData;
+
+
+    protected override void OnParametersSet()
+    {        
+        List<CustomFileRegistry>? customs = new();
+        foreach (var fileRegistry in FileRegistrys)
+        {
+            var networkPath = @"\\192.168.2.240\受注fax保管";
+            networkPath += $@"\{fileRegistry.DirectoryPath}\{fileRegistry.FileName}";
+
+            if (File.Exists(networkPath))
+            {
+                var custom = new CustomFileRegistry
+                    {
+                        Id = fileRegistry.Id,
+                        FileFullPath = fileRegistry.FileFullPath,
+                        Thumbnail = fileRegistry.Thumbnail,
+                        CreatedDate = fileRegistry.CreatedDate,
+                        ZyutyuuID = fileRegistry.ZyutyuuID,
+                        ConsignorName = fileRegistry.ConsignorName,
+                        Department = fileRegistry.Department,
+                        StartDate = fileRegistry.StartDate,
+                        EndDate = fileRegistry.EndDate,
+                        OrderAmount = fileRegistry.OrderAmount,
+                        NetworkPath = networkPath
+                    };
+                customs.Add(custom);                    
+            }
+        }
+        _customFileRegistrys = customs;        
+    }
+
+    private void OnCardClick(string filePath)
+    {
+        _selectedFilePath = filePath;
+        base64EncodedImageData = _customFileRegistrys.Where(c => c.NetworkPath == _selectedFilePath).Select(c => c.ThumbnailBase64).ToString();
+        StateHasChanged();
+        // PDFファイルの拡張子を確認し、表示内容を更新
+        var extension = Path.GetExtension(filePath).ToLower();
+        if (extension == ".pdf")
+        {
+            Console.WriteLine($"PDFファイルが選択されました: {filePath}");
+        }
+        else
+        {
+            Console.WriteLine($"非PDFファイルが選択されました: {filePath}");
+        }
+    }
+    // private string EncodeFilePath(string filePath)
+    // {
+    //     return Uri.EscapeDataString(filePath).Replace("+", "%20");
+    // }
+
+    private void OnCardDoubleClick(string filePath)
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                // シェルを使用して既定のアプリでファイルを開く
+                Process.Start(new ProcessStartInfo
+                    {
+                        FileName = filePath,
+                        UseShellExecute = true // シェルを使って関連付けられたアプリで開く
+                    });
+                Console.WriteLine($"ファイルを開きました: {filePath}");
+            }
+            else
+            {
+                Console.WriteLine($"ファイルが見つかりません: {filePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ファイルを開く際にエラーが発生しました: {ex.Message}");
+        }
+    }
+
+
+
+
+
+    private class CustomFileRegistry : FileRegistry
+    {
+        public string ThumbnailBase64
+        {
+            get
+            {
+                if (Thumbnail == null || Thumbnail.Length == 0)
+                {
+                    return null;
+                }
+                return $"data:image/jpeg;base64,{Convert.ToBase64String(Thumbnail)}";
+            }
+
+        }
+        public string NetworkPath { get; set; } = "";
+
+    }
+
+
+
+
+
+
+
+
+
+}
+<script type="module">
+    import { getDocument, GlobalWorkerOptions } from './js/pdf.mjs';
+
+    // Workerのパスを設定
+    GlobalWorkerOptions.workerSrc = './js/pdf.worker.mjs';
+
+    const loadingTask = getDocument('path/to/your/pdf/file.pdf');
+    loadingTask.promise.then(pdf => {
+        console.log('PDF loaded');
+
+        // 最初のページを取得して表示する例
+        pdf.getPage(1).then(page => {
+            console.log('Page loaded');
+
+            const scale = 1.5;
+            const viewport = page.getViewport({ scale });
+
+            const canvas = document.getElementById('pdf-canvas');
+            const context = canvas.getContext('2d');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+
+            const renderContext = {
+                canvasContext: context,
+                viewport: viewport,
+            };
+            page.render(renderContext);
+        });
+    });
+</script>

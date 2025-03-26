@@ -1,0 +1,42 @@
+﻿
+
+
+@* <div class="control-section">
+    <div id="flat-list">
+        <SfListView CssClass="listview" DataSource="@DisplayContents" TValue="DisplayContent">
+            <ListViewFieldSettings TValue="DisplayContent" Id="Id" Text="Name"></ListViewFieldSettings>
+        </SfListView>
+    </div>
+</div>
+ *@
+
+
+
+@foreach (var contents in DisplayContents)
+{
+    <p @onclick="() => OnContentClick(contents)">@contents.Name</p>
+    <p @onclick="() => OnContentClick(contents)">@contents.NetworkPath</p>
+}
+
+
+
+
+
+@code {
+
+    [Parameter] public List<DisplayContent> DisplayContents { get; set; }
+    [Parameter] public EventCallback<DisplayContent> OnSelectedContent { get; set; }
+
+
+
+
+
+    private async Task OnContentClick(DisplayContent content)
+    {
+        await OnSelectedContent.InvokeAsync(content);
+    }
+
+
+
+
+}

@@ -1,0 +1,180 @@
+﻿
+
+
+
+@* <SfAccordion>
+    <AccordionItems>
+        <AccordionItem>
+            <HeaderTemplate>
+                <div>
+                    <SfNumericTextBox TValue="decimal?" @bind-Value="@_searchCondition.ZyutyuuID" Placeholder="受注ID" ShowSpinButton="false" Format="0"></SfNumericTextBox>                    
+                    <span class="material-symbols-outlined">feature_search</span>
+                </div>                
+            </HeaderTemplate>
+            <ContentTemplate>
+                <div>                    
+                    <SfComboBox TValue="string" Placeholder="荷主名" TItem="string" @bind-Value="@_searchCondition.ConsignorName" DataSource="@_customers" AllowFiltering="true"></SfComboBox>
+                    <SfComboBox TValue="string" Placeholder="担当" TItem="string" @bind-Value="@_searchCondition.Department" DataSource="@_departments"></SfComboBox>                    
+                    <SfTextBox @bind-Value="@_searchCondition.Remarks" Placeholder="備考"></SfTextBox>
+                    <SfDatePicker TValue="DateTime?" @bind-Value="@_searchCondition.StartDate" Placeholder="開始日"></SfDatePicker>
+                    <SfDatePicker TValue="DateTime?" @bind-Value="@_searchCondition.EndDate" Placeholder="終了日"></SfDatePicker>
+                    <SfNumericTextBox TValue="decimal?" @bind-Value="@_searchCondition.OrderAmountUpper" Placeholder="受注金額上限" ShowSpinButton="false" Format="0"></SfNumericTextBox>
+                    <SfNumericTextBox TValue="decimal?" @bind-Value="@_searchCondition.OrderAmountLower" Placeholder="受注金額下限" ShowSpinButton="false" Format="0"></SfNumericTextBox>
+                </div>
+            </ContentTemplate>
+        </AccordionItem>
+
+    </AccordionItems>
+</SfAccordion> *@
+
+<div style="height: @_contentHeight; overflow: hidden;">
+    <div style="display: flex; align-items: center; height: 50px; width: 100%;">
+
+        <!-- テキストボックス（可変サイズ） -->
+        <div style="flex: 1; margin-left: 12px;">
+            <SfNumericTextBox TValue="decimal?"
+            @bind-Value="@_searchCondition.ZyutyuuID"
+            Placeholder="受注ID"
+            ShowSpinButton="false"
+            Format="0"
+            style="width: 100%;">
+            </SfNumericTextBox>
+        </div>
+
+        <!-- 右アイコン（右寄せ） -->    
+        <div style="margin-left: 8px; margin-right:8px;">
+            <SfButton @onclick="OnSearchButtonClick" CssClass="e-small e-flat" IconCss="e-icons e-search"></SfButton>
+        </div>
+        <div style="margin-left: 8px; margin-right:10px;">
+            <SfButton @onclick="OnMenuButtonClick" CssClass="e-small e-flat" IconCss="@_expandedIconImage"></SfButton>
+        </div>
+    </div>
+
+    <div>
+        <SfComboBox TValue="string" Placeholder="荷主名" TItem="string" @bind-Value="@_searchCondition.ConsignorName" DataSource="@_customers" AllowFiltering="true"></SfComboBox>
+        <SfComboBox TValue="string" Placeholder="担当" TItem="string" @bind-Value="@_searchCondition.Department" DataSource="@_departments"></SfComboBox>
+        <SfTextBox @bind-Value="@_searchCondition.Remarks" Placeholder="備考"></SfTextBox>
+        <SfDatePicker TValue="DateTime?" @bind-Value="@_searchCondition.StartDate" Placeholder="開始日"></SfDatePicker>
+        <SfDatePicker TValue="DateTime?" @bind-Value="@_searchCondition.EndDate" Placeholder="終了日"></SfDatePicker>
+        <SfNumericTextBox TValue="decimal?" @bind-Value="@_searchCondition.OrderAmountUpper" Placeholder="受注金額上限" ShowSpinButton="false" Format="0"></SfNumericTextBox>
+        <SfNumericTextBox TValue="decimal?" @bind-Value="@_searchCondition.OrderAmountLower" Placeholder="受注金額下限" ShowSpinButton="false" Format="0"></SfNumericTextBox>
+    </div>
+
+</div>
+
+
+
+<style>
+    #target {
+    min-height: 400px;
+    height: 100%;
+    position: relative;
+    }
+</style>
+
+
+
+
+@code {
+    [Parameter] public EventCallback<SearchCondition> OnSearchCondition { get; set; }
+
+    private SearchCondition _searchCondition = new();
+    private List<string> _customers = new();
+    List<string> _departments = new List<string>
+    {
+        "Australia",
+        "Bermuda",
+        "Canada",
+        "Cameroon",
+    };
+
+    private bool _isOpen = true;
+    private string _contentHeight = "50px";
+    private string _expandedIconImage = "e-icons e-chevron-down";
+
+    protected override async Task OnInitializedAsync()
+    {
+        this.OnMenuButtonClick();
+        await this.GetCustomer();
+
+    }
+
+    private async Task GetCustomer()
+    {
+        _customers = await CustomerService.GetCustomersAsync();
+    }
+
+
+
+    private async Task OnSearchButtonClick()
+    {
+        await OnSelectedSearchConditionAsync();
+    }
+
+    private async Task OnSelectedSearchConditionAsync()
+    {      
+        if (_searchCondition!=null)
+        {
+            await OnSearchCondition.InvokeAsync(_searchCondition);
+        }
+        CloseDialog();
+    }
+
+
+
+
+
+    private void ClearSearchConditions()
+    {
+        _searchCondition = new();
+    }
+
+
+
+
+
+
+
+    private void OnMenuButtonClick()
+    {
+        if (_isOpen)
+        {
+            //閉じる処理
+            this._contentHeight = "50px";
+            _expandedIconImage = "e-icons e-chevron-down";
+
+        }
+        else
+        {
+            //開く処理
+            this._contentHeight = "280px";
+            _expandedIconImage = "e-icons e-chevron-up";
+
+        }
+        _isOpen = !_isOpen;
+
+       
+    }
+
+
+
+
+
+
+    private void OpenDialog()
+
+    {
+        
+        StateHasChanged();
+    }
+
+    private void CloseDialog()
+    {
+       
+        StateHasChanged();
+    }
+    
+
+}
+
+
